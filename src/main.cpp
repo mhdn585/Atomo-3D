@@ -104,6 +104,8 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
     std::random_device rd;
     std::mt19937 gen(rd() + (int)(time * 1000) + n*100 + l*10 + ml);
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    std::normal_distribution<float> noise(0.0f, 0.15f);
+    std::mt19937 noiseGen(rd() + (int)(time * 2000) + n*200 + l*20 + ml*5);
     
     float r, theta, phi;
     
@@ -126,18 +128,27 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.x = fabs(p.x);
             if(dist(gen) > 0.5f) p.x = -p.x;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 0) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 1) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
     }
@@ -152,6 +163,9 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == -1) {
@@ -159,18 +173,28 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 0) {
             Vec3 p = sphericalToCart(r, theta, phi);
             float factor = 3*cos(theta)*cos(theta) - 1;
-            return p * fabs(factor);
+            p = p * fabs(factor);
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
+            return p;
         }
         else if(ml == 1) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.y = fabs(p.y); p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.y = -p.y;
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 2) {
@@ -178,6 +202,9 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
     }
@@ -187,10 +214,16 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
         theta = acos(2*dist(gen)-1);
         phi = 2 * 3.14159f * dist(gen);
         Vec3 p = sphericalToCart(r, theta, phi);
+        p.x += noise(noiseGen) * 0.3f;
+        p.y += noise(noiseGen) * 0.3f;
+        p.z += noise(noiseGen) * 0.3f;
         return p;
     }
     
     Vec3 p = sphericalToCart(r, theta, phi);
+    p.x += noise(noiseGen) * 0.3f;
+    p.y += noise(noiseGen) * 0.3f;
+    p.z += noise(noiseGen) * 0.3f;
     return p;
 }
 
@@ -274,6 +307,8 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     
+    float nucleusExclusionRadius = atom.nuclearRadius * 1.8f;
+    
     for(const Electron& e : atom.electrons) {
         Color col = getOrbitalColor(e.l, e.ml);
         float rFactor = 0.3f + e.n * 0.15f;
@@ -284,6 +319,11 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
         for(int i=0; i<numPoints; i++) {
             Vec3 pos = getOrbitalPosition(e.n, e.l, e.ml, e.ms, i * 0.7f + e.n * 1.3f + e.ml * 0.5f);
             pos = pos * rFactor;
+            
+            float distFromCenter = pos.magnitude();
+            if(distFromCenter < nucleusExclusionRadius) {
+                pos = pos.normalize() * nucleusExclusionRadius;
+            }
             
             float density = 1.0f - pos.magnitude() / (e.n * e.n * 1.5f);
             density = std::max(0.0f, std::min(1.0f, density));
@@ -756,12 +796,20 @@ int main() {
             pointVAO = createPointVAO();
         }
         
+        float nucleusExclusionRadius = atom.nuclearRadius * 1.8f;
+        
         for(Electron& e : atom.electrons) {
             Vec3 force(0,0,0);
             float k = 0.5f;
             
             Vec3 toNucleus = e.pos * -1.0f;
             float distN = toNucleus.magnitude() + 0.1f;
+            
+            if(distN < nucleusExclusionRadius) {
+                Vec3 pushOut = e.pos.normalize() * (nucleusExclusionRadius - distN) * 2.0f;
+                e.pos = e.pos + pushOut;
+            }
+            
             float coulomb = k * atom.Z / (distN * distN);
             force = force + toNucleus.normalize() * (-coulomb);
             
@@ -776,6 +824,17 @@ int main() {
             e.vel = e.vel + force * dt * 2.0f;
             e.vel = e.vel * 0.99f;
             e.pos = e.pos + e.vel * dt;
+            
+            float distAfter = e.pos.magnitude();
+            if(distAfter < nucleusExclusionRadius) {
+                e.pos = e.pos.normalize() * nucleusExclusionRadius;
+                Vec3 velNormal = e.vel.normalize();
+                Vec3 posNormal = e.pos.normalize();
+                float dotProduct = velNormal.dot(posNormal);
+                if(dotProduct < 0) {
+                    e.vel = e.vel - posNormal * (velNormal.dot(posNormal)) * 2.0f;
+                }
+            }
             
             float maxR = e.n * e.n * 1.2f;
             if(e.pos.magnitude() > maxR) {
