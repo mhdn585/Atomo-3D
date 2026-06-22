@@ -104,6 +104,8 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
     std::random_device rd;
     std::mt19937 gen(rd() + (int)(time * 1000) + n*100 + l*10 + ml);
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    std::normal_distribution<float> noise(0.0f, 0.15f);
+    std::mt19937 noiseGen(rd() + (int)(time * 2000) + n*200 + l*20 + ml*5);
     
     float r, theta, phi;
     
@@ -126,18 +128,27 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.x = fabs(p.x);
             if(dist(gen) > 0.5f) p.x = -p.x;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 0) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 1) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
     }
@@ -152,6 +163,9 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == -1) {
@@ -159,18 +173,28 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 0) {
             Vec3 p = sphericalToCart(r, theta, phi);
             float factor = 3*cos(theta)*cos(theta) - 1;
-            return p * fabs(factor);
+            p = p * fabs(factor);
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
+            return p;
         }
         else if(ml == 1) {
             Vec3 p = sphericalToCart(r, theta, phi);
             p.y = fabs(p.y); p.z = fabs(p.z);
             if(dist(gen) > 0.5f) p.y = -p.y;
             if(dist(gen) > 0.5f) p.z = -p.z;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
         else if(ml == 2) {
@@ -178,6 +202,9 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
             p.x = fabs(p.x); p.y = fabs(p.y);
             if(dist(gen) > 0.5f) p.x = -p.x;
             if(dist(gen) > 0.5f) p.y = -p.y;
+            p.x += noise(noiseGen) * 0.3f;
+            p.y += noise(noiseGen) * 0.3f;
+            p.z += noise(noiseGen) * 0.3f;
             return p;
         }
     }
@@ -187,10 +214,16 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
         theta = acos(2*dist(gen)-1);
         phi = 2 * 3.14159f * dist(gen);
         Vec3 p = sphericalToCart(r, theta, phi);
+        p.x += noise(noiseGen) * 0.3f;
+        p.y += noise(noiseGen) * 0.3f;
+        p.z += noise(noiseGen) * 0.3f;
         return p;
     }
     
     Vec3 p = sphericalToCart(r, theta, phi);
+    p.x += noise(noiseGen) * 0.3f;
+    p.y += noise(noiseGen) * 0.3f;
+    p.z += noise(noiseGen) * 0.3f;
     return p;
 }
 
@@ -268,11 +301,51 @@ static Atom createAtom(int Z, int N) {
     return atom;
 }
 
+static std::vector<OrbitalPoint> generateBubble(const Atom& atom, int numPoints) {
+    std::vector<OrbitalPoint> points;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    
+    float innerRadius = atom.nuclearRadius * 1.2f;
+    float outerRadius = atom.nuclearRadius * 2.2f;
+    float thickness = outerRadius - innerRadius;
+    
+    for(int i=0; i<numPoints; i++) {
+        float theta = acos(2*dist(gen)-1);
+        float phi = 2 * 3.14159f * dist(gen);
+        
+        float rFactor = pow(dist(gen), 0.4f);
+        float r = innerRadius + rFactor * thickness;
+        
+        Vec3 pos = sphericalToCart(r, theta, phi);
+        
+        float t = (r - innerRadius) / thickness;
+        
+        Color col;
+        col.r = 0.2f + 0.8f * (1.0f - t * t);
+        col.g = 0.3f + 0.7f * (1.0f - t * t);
+        col.b = 0.8f + 0.2f * t;
+        
+        float density = 1.0f - t * t;
+        
+        OrbitalPoint op;
+        op.pos = pos;
+        op.color = col;
+        op.density = density;
+        points.push_back(op);
+    }
+    
+    return points;
+}
+
 static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int pointsPerOrbital) {
     std::vector<OrbitalPoint> points;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    
+    float nucleusExclusionRadius = atom.nuclearRadius * 1.8f;
     
     for(const Electron& e : atom.electrons) {
         Color col = getOrbitalColor(e.l, e.ml);
@@ -285,7 +358,13 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
             Vec3 pos = getOrbitalPosition(e.n, e.l, e.ml, e.ms, i * 0.7f + e.n * 1.3f + e.ml * 0.5f);
             pos = pos * rFactor;
             
-            float density = 1.0f - pos.magnitude() / (e.n * e.n * 1.5f);
+            float distFromCenter = pos.magnitude();
+            if(distFromCenter < nucleusExclusionRadius) {
+                pos = pos.normalize() * nucleusExclusionRadius;
+            }
+            
+            float maxR = e.n * e.n * 1.5f;
+            float density = 1.0f - pos.magnitude() / maxR;
             density = std::max(0.0f, std::min(1.0f, density));
             
             Color pc = col;
@@ -705,7 +784,12 @@ int main() {
     glfwSetKeyCallback(window, keyCallback);
     
     Atom atom = createAtom(userData.currentZ, userData.currentZ);
-    std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 20000);
+    std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 15000);
+    std::vector<OrbitalPoint> bubblePoints = generateBubble(atom, 8000);
+    std::vector<OrbitalPoint> allPoints;
+    allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+    allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+    allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
     
     GLuint gridVAO = createGridVAO(12.0f, 12);
     GLuint nucleusVAO = createNucleusVAO(0.3f, 16);
@@ -742,7 +826,12 @@ int main() {
         
         if(userData.currentZ != atom.Z) {
             atom = createAtom(userData.currentZ, userData.currentZ);
-            orbitalPoints = generateOrbitalPoints(atom, 20000);
+            orbitalPoints = generateOrbitalPoints(atom, 15000);
+            bubblePoints = generateBubble(atom, 8000);
+            allPoints.clear();
+            allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+            allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+            allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
             
             electronPos.clear(); electronCol.clear();
             for(const Electron& e : atom.electrons) {
@@ -756,12 +845,20 @@ int main() {
             pointVAO = createPointVAO();
         }
         
+        float nucleusExclusionRadius = atom.nuclearRadius * 1.8f;
+        
         for(Electron& e : atom.electrons) {
             Vec3 force(0,0,0);
             float k = 0.5f;
             
             Vec3 toNucleus = e.pos * -1.0f;
             float distN = toNucleus.magnitude() + 0.1f;
+            
+            if(distN < nucleusExclusionRadius) {
+                Vec3 pushOut = e.pos.normalize() * (nucleusExclusionRadius - distN) * 2.0f;
+                e.pos = e.pos + pushOut;
+            }
+            
             float coulomb = k * atom.Z / (distN * distN);
             force = force + toNucleus.normalize() * (-coulomb);
             
@@ -777,6 +874,17 @@ int main() {
             e.vel = e.vel * 0.99f;
             e.pos = e.pos + e.vel * dt;
             
+            float distAfter = e.pos.magnitude();
+            if(distAfter < nucleusExclusionRadius) {
+                e.pos = e.pos.normalize() * nucleusExclusionRadius;
+                Vec3 velNormal = e.vel.normalize();
+                Vec3 posNormal = e.pos.normalize();
+                float dotProduct = velNormal.dot(posNormal);
+                if(dotProduct < 0) {
+                    e.vel = e.vel - posNormal * (velNormal.dot(posNormal)) * 2.0f;
+                }
+            }
+            
             float maxR = e.n * e.n * 1.2f;
             if(e.pos.magnitude() > maxR) {
                 e.vel = e.vel - e.pos.normalize() * e.vel.dot(e.pos.normalize()) * 0.5f;
@@ -788,9 +896,14 @@ int main() {
             electronPos[i] = atom.electrons[i].pos;
         }
         
-        int pointsPerOrbital = 20000 / atom.electrons.size();
+        int pointsPerOrbital = 15000 / atom.electrons.size();
         if(pointsPerOrbital < 100) pointsPerOrbital = 100;
         orbitalPoints = generateOrbitalPoints(atom, pointsPerOrbital * atom.electrons.size());
+        bubblePoints = generateBubble(atom, 8000);
+        allPoints.clear();
+        allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+        allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+        allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
         
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
@@ -845,14 +958,14 @@ int main() {
         glDrawElements(GL_TRIANGLES, 16*16*6, GL_UNSIGNED_INT, 0);
         
         std::vector<float> pointData;
-        pointData.reserve(orbitalPoints.size() * 6);
-        for(size_t i=0; i<orbitalPoints.size(); i++) {
-            pointData.push_back(orbitalPoints[i].pos.x);
-            pointData.push_back(orbitalPoints[i].pos.y);
-            pointData.push_back(orbitalPoints[i].pos.z);
-            pointData.push_back(orbitalPoints[i].color.r * 0.8f);
-            pointData.push_back(orbitalPoints[i].color.g * 0.8f);
-            pointData.push_back(orbitalPoints[i].color.b * 0.8f);
+        pointData.reserve(allPoints.size() * 6);
+        for(size_t i=0; i<allPoints.size(); i++) {
+            pointData.push_back(allPoints[i].pos.x);
+            pointData.push_back(allPoints[i].pos.y);
+            pointData.push_back(allPoints[i].pos.z);
+            pointData.push_back(allPoints[i].color.r * 0.8f);
+            pointData.push_back(allPoints[i].color.g * 0.8f);
+            pointData.push_back(allPoints[i].color.b * 0.8f);
         }
         
         glUniformMatrix4fv(modelViewLoc, 1, GL_FALSE, modelView);
@@ -865,7 +978,7 @@ int main() {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
         glEnableVertexAttribArray(1);
-        glDrawArrays(GL_POINTS, 0, orbitalPoints.size());
+        glDrawArrays(GL_POINTS, 0, allPoints.size());
         glDeleteBuffers(1, &buf);
         
         glfwSwapBuffers(window);
