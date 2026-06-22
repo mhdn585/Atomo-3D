@@ -1,0 +1,90 @@
+rol {
+    eres un programador senior en C++17, eres experto en el desarrollo de simulaciones con OpenGL, fisicas avanzasas, matematicas, fisica cuantica y atomos.
+
+    eres un programador que genera un codigo de super alta calidad, generes un codigo estable, escalable, funcional y sin errores de logica.
+}
+
+contexto {
+    # Simulador de Átomos en 3D - Explicación Detallada
+
+    Este programa implementa un simulador atómico tridimensional interactivo utilizando OpenGL y GLFW, que permite visualizar la estructura electrónica de diferentes elementos químicos desde el hidrógeno (Z=1) hasta el kriptón (Z=36). La simulación combina principios de física cuántica con mecánica clásica para crear una representación visual dinámica y educativa del átomo.
+
+    ## Arquitectura del Sistema
+
+    El núcleo del programa está estructurado en tres capas principales: la representación de datos atómicos, el motor de simulación física y el sistema de renderizado 3D. La estructura `Atom` contiene toda la información esencial del elemento, incluyendo el número atómico (Z), el número de neutrones (N), una colección de nucleones (protones y neutrones) distribuidos en el núcleo, y un conjunto de electrones organizados en capas y subcapas según la configuración electrónica real.
+
+    ## Modelado Cuántico de Electrones
+
+    Cada electrón se define mediante los números cuánticos (n, l, ml, ms), donde:
+
+    - **n** representa el nivel de energía principal (capa)
+    - **l** define la forma del orbital (0=s, 1=p, 2=d, 3=f)
+    - **ml** especifica la orientación espacial del orbital
+    - **ms** indica el espín del electrón
+
+    La función `getOrbitalPosition()` genera posiciones de muestreo que emulan la distribución de probabilidad electrónica basada en la mecánica cuántica. Para cada tipo de orbital, se aplican transformaciones específicas que recrean las formas características:
+
+    - **Orbitales s (l=0)**: Distribución esférica simétrica
+    - **Orbitales p (l=1)**: Formas de "pesa" con tres orientaciones (px, py, pz)
+    - **Orbitales d (l=2)**: Geometrías más complejas con cuatro lóbulos
+    - **Orbitales f (l=3)**: Formas aún más elaboradas
+
+    El sistema utiliza generación aleatoria con distribución normal para añadir ruido realista, simulando el comportamiento probabilístico inherente a la mecánica cuántica.
+
+    ## Simulación Física Dinámica
+
+    La simulación incorpora un modelo híbrido que combina:
+
+    1. **Fuerza de Coulomb**: Atracción electrostática entre electrones y el núcleo, calculada mediante la ley de Coulomb inversa al cuadrado de la distancia.
+
+    2. **Repulsión electrón-electrón**: Fuerza de repulsión entre electrones que evita el colapso del sistema y simula el principio de exclusión de Pauli.
+
+    3. **Confinamiento orbital**: Restricciones que mantienen a los electrones dentro de regiones aproximadas a sus radios orbitales teóricos (basados en el número cuántico principal n).
+
+    4. **Exclusión nuclear**: Mecanismo que impide que los electrones penetren el núcleo, reflejando la naturaleza de la fuerza nuclear fuerte.
+
+    El sistema integra estas fuerzas mediante un método de integración de Euler con amortiguamiento (factor 0.99 en la velocidad), produciendo un movimiento suave y estable que se asemeja al comportamiento cuántico real.
+
+    ## Representación Visual Avanzada
+
+    La visualización utiliza OpenGL 3.3 con shaders programables para renderizar múltiples elementos:
+
+    - **Núcleo atómico**: Representado como una esfera de color rojo (protones) y gris (neutrones), con un tamaño basado en la raíz cúbica del número de nucleones.
+
+    - **Orbitales electrónicos**: Renderizados como nubes de puntos coloreados, donde la densidad de puntos y el color indican la probabilidad de encontrar el electrón en esa región. Cada orbital tiene un color característico que facilita la identificación de los diferentes estados cuánticos.
+
+    - **Sistema de coordenadas**: Una cuadrícula de referencia con ejes coloreados (rojo para X, verde para Y, azul para Z) que ayuda a la orientación espacial.
+
+    ## Interacción y Controles
+
+    El programa ofrece una experiencia interactiva completa:
+
+    - **Cambio de elemento**: Teclas de flecha (Arriba/Abajo) para navegar entre los elementos del 1 al 36, regenerando instantáneamente la configuración atómica completa.
+
+    - **Rotación 3D**: Arrastre con el botón izquierdo del mouse para girar la vista alrededor del átomo, permitiendo examinar la estructura desde cualquier ángulo.
+
+    - **Zoom**: Scroll del mouse para acercar o alejar la vista, con límites suaves que mantienen la estabilidad visual.
+
+    ## Optimización y Rendimiento
+
+    El sistema está optimizado para visualizar hasta 36 electrones con aproximadamente 20,000 puntos de orbital, manteniendo una alta tasa de fotogramas. Utiliza:
+
+    - **Vertex Buffer Objects (VBO)**: Para almacenamiento eficiente de geometría en la GPU
+    - **Element Buffer Objects (EBO)**: Para renderizado optimizado de mallas
+    - **Multisampling**: Para suavizado de bordes y mejor calidad visual
+    - **Actualización dinámica**: Los datos de puntos se actualizan en cada fotograma mediante buffers dinámicos
+
+    ## Aplicaciones Educativas
+
+    Esta herramienta es particularmente valiosa para:
+
+    - **Enseñanza de química cuántica**: Visualización intuitiva de conceptos abstractos como números cuánticos y formas orbitales
+    - **Física atómica**: Demostración de la estructura del átomo y fuerzas fundamentales
+    - **Visualización científica**: Representación interactiva de sistemas complejos en tiempo real
+
+    El programa logra un equilibrio entre precisión física y rendimiento visual, ofreciendo una ventana fascinante al mundo microscópico de los átomos que combina el rigor científico con la accesibilidad visual.
+}
+
+tarea {
+    este atomo que estoy desarrollando esta formado por varios elementos, 
+}

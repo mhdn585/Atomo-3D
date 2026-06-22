@@ -301,6 +301,44 @@ static Atom createAtom(int Z, int N) {
     return atom;
 }
 
+static std::vector<OrbitalPoint> generateBubble(const Atom& atom, int numPoints) {
+    std::vector<OrbitalPoint> points;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    
+    float innerRadius = atom.nuclearRadius * 1.2f;
+    float outerRadius = atom.nuclearRadius * 2.2f;
+    float thickness = outerRadius - innerRadius;
+    
+    for(int i=0; i<numPoints; i++) {
+        float theta = acos(2*dist(gen)-1);
+        float phi = 2 * 3.14159f * dist(gen);
+        
+        float rFactor = pow(dist(gen), 0.4f);
+        float r = innerRadius + rFactor * thickness;
+        
+        Vec3 pos = sphericalToCart(r, theta, phi);
+        
+        float t = (r - innerRadius) / thickness;
+        
+        Color col;
+        col.r = 0.2f + 0.8f * (1.0f - t * t);
+        col.g = 0.3f + 0.7f * (1.0f - t * t);
+        col.b = 0.8f + 0.2f * t;
+        
+        float density = 1.0f - t * t;
+        
+        OrbitalPoint op;
+        op.pos = pos;
+        op.color = col;
+        op.density = density;
+        points.push_back(op);
+    }
+    
+    return points;
+}
+
 static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int pointsPerOrbital) {
     std::vector<OrbitalPoint> points;
     std::random_device rd;
@@ -325,7 +363,8 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
                 pos = pos.normalize() * nucleusExclusionRadius;
             }
             
-            float density = 1.0f - pos.magnitude() / (e.n * e.n * 1.5f);
+            float maxR = e.n * e.n * 1.5f;
+            float density = 1.0f - pos.magnitude() / maxR;
             density = std::max(0.0f, std::min(1.0f, density));
             
             Color pc = col;
@@ -745,7 +784,12 @@ int main() {
     glfwSetKeyCallback(window, keyCallback);
     
     Atom atom = createAtom(userData.currentZ, userData.currentZ);
-    std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 20000);
+    std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 15000);
+    std::vector<OrbitalPoint> bubblePoints = generateBubble(atom, 8000);
+    std::vector<OrbitalPoint> allPoints;
+    allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+    allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+    allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
     
     GLuint gridVAO = createGridVAO(12.0f, 12);
     GLuint nucleusVAO = createNucleusVAO(0.3f, 16);
@@ -782,7 +826,12 @@ int main() {
         
         if(userData.currentZ != atom.Z) {
             atom = createAtom(userData.currentZ, userData.currentZ);
-            orbitalPoints = generateOrbitalPoints(atom, 20000);
+            orbitalPoints = generateOrbitalPoints(atom, 15000);
+            bubblePoints = generateBubble(atom, 8000);
+            allPoints.clear();
+            allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+            allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+            allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
             
             electronPos.clear(); electronCol.clear();
             for(const Electron& e : atom.electrons) {
@@ -847,9 +896,14 @@ int main() {
             electronPos[i] = atom.electrons[i].pos;
         }
         
-        int pointsPerOrbital = 20000 / atom.electrons.size();
+        int pointsPerOrbital = 15000 / atom.electrons.size();
         if(pointsPerOrbital < 100) pointsPerOrbital = 100;
         orbitalPoints = generateOrbitalPoints(atom, pointsPerOrbital * atom.electrons.size());
+        bubblePoints = generateBubble(atom, 8000);
+        allPoints.clear();
+        allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+        allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
+        allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
         
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
@@ -904,14 +958,14 @@ int main() {
         glDrawElements(GL_TRIANGLES, 16*16*6, GL_UNSIGNED_INT, 0);
         
         std::vector<float> pointData;
-        pointData.reserve(orbitalPoints.size() * 6);
-        for(size_t i=0; i<orbitalPoints.size(); i++) {
-            pointData.push_back(orbitalPoints[i].pos.x);
-            pointData.push_back(orbitalPoints[i].pos.y);
-            pointData.push_back(orbitalPoints[i].pos.z);
-            pointData.push_back(orbitalPoints[i].color.r * 0.8f);
-            pointData.push_back(orbitalPoints[i].color.g * 0.8f);
-            pointData.push_back(orbitalPoints[i].color.b * 0.8f);
+        pointData.reserve(allPoints.size() * 6);
+        for(size_t i=0; i<allPoints.size(); i++) {
+            pointData.push_back(allPoints[i].pos.x);
+            pointData.push_back(allPoints[i].pos.y);
+            pointData.push_back(allPoints[i].pos.z);
+            pointData.push_back(allPoints[i].color.r * 0.8f);
+            pointData.push_back(allPoints[i].color.g * 0.8f);
+            pointData.push_back(allPoints[i].color.b * 0.8f);
         }
         
         glUniformMatrix4fv(modelViewLoc, 1, GL_FALSE, modelView);
@@ -924,7 +978,7 @@ int main() {
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float), (void*)(3*sizeof(float)));
         glEnableVertexAttribArray(1);
-        glDrawArrays(GL_POINTS, 0, orbitalPoints.size());
+        glDrawArrays(GL_POINTS, 0, allPoints.size());
         glDeleteBuffers(1, &buf);
         
         glfwSwapBuffers(window);
