@@ -70,6 +70,28 @@ static Vec3 sphericalToCart(float r, float theta, float phi) {
     return Vec3(r*sin(theta)*cos(phi), r*cos(theta), r*sin(theta)*sin(phi));
 }
 
+static Color heatMapColor(float t) {
+    t = std::max(0.0f, std::min(1.0f, t));
+    Color colors[] = {
+        Color(1.0f, 1.0f, 1.0f),    // 0.0 - Blanco
+        Color(1.0f, 1.0f, 0.8f),    // 0.15 - Amarillo claro
+        Color(1.0f, 0.95f, 0.2f),   // 0.3 - Amarillo
+        Color(1.0f, 0.7f, 0.0f),    // 0.5 - Naranja
+        Color(1.0f, 0.3f, 0.0f),    // 0.7 - Rojo-naranja
+        Color(0.6f, 0.05f, 0.1f),   // 0.85 - Rojo oscuro
+        Color(0.2f, 0.0f, 0.3f)     // 1.0 - Morado oscuro
+    };
+    float positions[] = {0.0f, 0.15f, 0.3f, 0.5f, 0.7f, 0.85f, 1.0f};
+    
+    for(int i = 0; i < 6; i++) {
+        if(t >= positions[i] && t <= positions[i+1]) {
+            float localT = (t - positions[i]) / (positions[i+1] - positions[i]);
+            return colorLerp(colors[i], colors[i+1], localT);
+        }
+    }
+    return colors[6];
+}
+
 static std::vector<int> getElectronConfig(int Z) {
     std::vector<int> config;
     const char* order[] = {"1s","2s","2p","3s","3p","4s","3d","4p","5s","4d","5p","6s","4f","5d","6p","7s","5f","6d","7p"};
@@ -227,23 +249,6 @@ static Vec3 getOrbitalPosition(int n, int l, int ml, int ms, float time) {
     return p;
 }
 
-static Color getOrbitalColor(int l, int ml) {
-    if(l == 0) return Color(0.2f, 0.5f, 1.0f);
-    if(l == 1) {
-        if(ml == -1) return Color(1.0f, 0.2f, 0.2f);
-        if(ml == 0) return Color(0.2f, 1.0f, 0.2f);
-        if(ml == 1) return Color(0.2f, 0.2f, 1.0f);
-    }
-    if(l == 2) {
-        if(ml == -2) return Color(1.0f, 0.5f, 0.0f);
-        if(ml == -1) return Color(1.0f, 0.0f, 0.5f);
-        if(ml == 0) return Color(0.5f, 0.5f, 0.0f);
-        if(ml == 1) return Color(0.0f, 1.0f, 0.5f);
-        if(ml == 2) return Color(0.5f, 0.0f, 1.0f);
-    }
-    return Color(0.5f, 0.5f, 0.5f);
-}
-
 static Atom createAtom(int Z, int N) {
     Atom atom;
     atom.Z = Z;
@@ -263,7 +268,11 @@ static Atom createAtom(int Z, int N) {
         nuc.pos = sphericalToCart(r, theta, phi);
         nuc.radius = 0.08f * pow(Z+N, 1.0f/3.0f);
         nuc.isProton = (i < Z);
-        nuc.color = nuc.isProton ? Color(0.9f, 0.2f, 0.2f) : Color(0.5f, 0.5f, 0.5f);
+        float distFromCenter = nuc.pos.magnitude();
+        float maxDist = atom.nuclearRadius * 0.8f;
+        float t = maxDist > 0 ? distFromCenter / maxDist : 0;
+        t = std::max(0.0f, std::min(1.0f, t));
+        nuc.color = heatMapColor(t);
         atom.nucleons.push_back(nuc);
     }
     
@@ -321,11 +330,9 @@ static std::vector<OrbitalPoint> generateBubble(const Atom& atom, int numPoints)
         Vec3 pos = sphericalToCart(r, theta, phi);
         
         float t = (r - innerRadius) / thickness;
+        t = std::max(0.0f, std::min(1.0f, t));
         
-        Color col;
-        col.r = 0.2f + 0.8f * (1.0f - t * t);
-        col.g = 0.3f + 0.7f * (1.0f - t * t);
-        col.b = 0.8f + 0.2f * t;
+        Color col = heatMapColor(t);
         
         float density = 1.0f - t * t;
         
@@ -346,9 +353,14 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     
     float nucleusExclusionRadius = atom.nuclearRadius * 1.8f;
+    float maxRadius = 0.0f;
+    for(const Electron& e : atom.electrons) {
+        float r = e.n * e.n * 1.5f;
+        if(r > maxRadius) maxRadius = r;
+    }
+    if(maxRadius < 1.0f) maxRadius = 1.0f;
     
     for(const Electron& e : atom.electrons) {
-        Color col = getOrbitalColor(e.l, e.ml);
         float rFactor = 0.3f + e.n * 0.15f;
         
         int numPoints = pointsPerOrbital / atom.electrons.size();
@@ -361,20 +373,24 @@ static std::vector<OrbitalPoint> generateOrbitalPoints(const Atom& atom, int poi
             float distFromCenter = pos.magnitude();
             if(distFromCenter < nucleusExclusionRadius) {
                 pos = pos.normalize() * nucleusExclusionRadius;
+                distFromCenter = nucleusExclusionRadius;
             }
             
-            float maxR = e.n * e.n * 1.5f;
-            float density = 1.0f - pos.magnitude() / maxR;
-            density = std::max(0.0f, std::min(1.0f, density));
+            float t = maxRadius > 0 ? distFromCenter / maxRadius : 0;
+            t = std::max(0.0f, std::min(1.0f, t));
             
-            Color pc = col;
-            pc.r *= 0.3f + 0.7f * density;
-            pc.g *= 0.3f + 0.7f * density;
-            pc.b *= 0.3f + 0.7f * density;
+            Color col = heatMapColor(t);
+            
+            float density = 1.0f - t * t;
+            density = std::max(0.1f, std::min(1.0f, density));
+            
+            col.r *= density;
+            col.g *= density;
+            col.b *= density;
             
             OrbitalPoint op;
             op.pos = pos;
-            op.color = pc;
+            op.color = col;
             op.density = density;
             points.push_back(op);
         }
@@ -720,7 +736,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 4);
     
-    GLFWwindow* window = glfwCreateWindow(1024, 768, "Atom Simulator 3D", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(1024, 768, "Atom Simulator 3D - Heat Map", nullptr, nullptr);
     if(!window) {
         std::cerr << "Error creating window" << std::endl;
         glfwTerminate();
@@ -739,6 +755,7 @@ int main() {
     std::cout << "OpenGL: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "Controls: Arrow Up/Down = change element, Mouse drag = rotate, Scroll = zoom" << std::endl;
+    std::cout << "Color scheme: Heat map from white/yellow center to dark purple exterior" << std::endl;
     
     const char* vsSource = "#version 330 core\n"
         "layout(location=0) in vec3 aPos;\n"
@@ -797,10 +814,18 @@ int main() {
     
     std::vector<Vec3> electronPos;
     std::vector<Color> electronCol;
+    float maxElectronDist = 0.0f;
     for(const Electron& e : atom.electrons) {
-        Color c = getOrbitalColor(e.l, e.ml);
-        float bright = 0.7f + 0.3f * (1.0f / e.n);
-        c.r *= bright; c.g *= bright; c.b *= bright;
+        float d = e.pos.magnitude();
+        if(d > maxElectronDist) maxElectronDist = d;
+    }
+    if(maxElectronDist < 1.0f) maxElectronDist = 1.0f;
+    
+    for(const Electron& e : atom.electrons) {
+        float dist = e.pos.magnitude();
+        float t = maxElectronDist > 0 ? dist / maxElectronDist : 0;
+        t = std::max(0.0f, std::min(1.0f, t));
+        Color c = heatMapColor(t);
         electronPos.push_back(e.pos);
         electronCol.push_back(c);
     }
@@ -834,10 +859,18 @@ int main() {
             allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
             
             electronPos.clear(); electronCol.clear();
+            maxElectronDist = 0.0f;
             for(const Electron& e : atom.electrons) {
-                Color c = getOrbitalColor(e.l, e.ml);
-                float bright = 0.7f + 0.3f * (1.0f / e.n);
-                c.r *= bright; c.g *= bright; c.b *= bright;
+                float d = e.pos.magnitude();
+                if(d > maxElectronDist) maxElectronDist = d;
+            }
+            if(maxElectronDist < 1.0f) maxElectronDist = 1.0f;
+            
+            for(const Electron& e : atom.electrons) {
+                float dist = e.pos.magnitude();
+                float t = maxElectronDist > 0 ? dist / maxElectronDist : 0;
+                t = std::max(0.0f, std::min(1.0f, t));
+                Color c = heatMapColor(t);
                 electronPos.push_back(e.pos);
                 electronCol.push_back(c);
             }
@@ -892,8 +925,19 @@ int main() {
             }
         }
         
+        maxElectronDist = 0.0f;
+        for(const Electron& e : atom.electrons) {
+            float d = e.pos.magnitude();
+            if(d > maxElectronDist) maxElectronDist = d;
+        }
+        if(maxElectronDist < 1.0f) maxElectronDist = 1.0f;
+        
         for(size_t i=0; i<electronPos.size() && i<atom.electrons.size(); i++) {
             electronPos[i] = atom.electrons[i].pos;
+            float dist = electronPos[i].magnitude();
+            float t = maxElectronDist > 0 ? dist / maxElectronDist : 0;
+            t = std::max(0.0f, std::min(1.0f, t));
+            electronCol[i] = heatMapColor(t);
         }
         
         int pointsPerOrbital = 15000 / atom.electrons.size();
@@ -963,9 +1007,9 @@ int main() {
             pointData.push_back(allPoints[i].pos.x);
             pointData.push_back(allPoints[i].pos.y);
             pointData.push_back(allPoints[i].pos.z);
-            pointData.push_back(allPoints[i].color.r * 0.8f);
-            pointData.push_back(allPoints[i].color.g * 0.8f);
-            pointData.push_back(allPoints[i].color.b * 0.8f);
+            pointData.push_back(allPoints[i].color.r);
+            pointData.push_back(allPoints[i].color.g);
+            pointData.push_back(allPoints[i].color.b);
         }
         
         glUniformMatrix4fv(modelViewLoc, 1, GL_FALSE, modelView);
