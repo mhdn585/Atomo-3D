@@ -316,15 +316,15 @@ static std::vector<OrbitalPoint> generateBubble(const Atom& atom, int numPoints)
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     
-    float innerRadius = atom.nuclearRadius * 1.2f;
-    float outerRadius = atom.nuclearRadius * 2.2f;
+    float innerRadius = atom.nuclearRadius * 0.8f;
+    float outerRadius = atom.nuclearRadius * 2.0f;
     float thickness = outerRadius - innerRadius;
     
     for(int i=0; i<numPoints; i++) {
         float theta = acos(2*dist(gen)-1);
         float phi = 2 * 3.14159f * dist(gen);
         
-        float rFactor = pow(dist(gen), 0.4f);
+        float rFactor = pow(dist(gen), 2.5f);
         float r = innerRadius + rFactor * thickness;
         
         Vec3 pos = sphericalToCart(r, theta, phi);
@@ -756,6 +756,7 @@ int main() {
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "Controls: Arrow Up/Down = change element, Mouse drag = rotate, Scroll = zoom" << std::endl;
     std::cout << "Color scheme: Heat map from white/yellow center to dark purple exterior" << std::endl;
+    std::cout << "Bubble density: Enhanced inner region with dense yellow core" << std::endl;
     
     const char* vsSource = "#version 330 core\n"
         "layout(location=0) in vec3 aPos;\n"
@@ -802,7 +803,7 @@ int main() {
     
     Atom atom = createAtom(userData.currentZ, userData.currentZ);
     std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 15000);
-    std::vector<OrbitalPoint> bubblePoints = generateBubble(atom, 8000);
+    std::vector<OrbitalPoint> bubblePoints = generateBubble(atom, 20000);
     std::vector<OrbitalPoint> allPoints;
     allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
     allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
@@ -852,7 +853,7 @@ int main() {
         if(userData.currentZ != atom.Z) {
             atom = createAtom(userData.currentZ, userData.currentZ);
             orbitalPoints = generateOrbitalPoints(atom, 15000);
-            bubblePoints = generateBubble(atom, 8000);
+            bubblePoints = generateBubble(atom, 20000);
             allPoints.clear();
             allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
             allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
@@ -943,7 +944,7 @@ int main() {
         int pointsPerOrbital = 15000 / atom.electrons.size();
         if(pointsPerOrbital < 100) pointsPerOrbital = 100;
         orbitalPoints = generateOrbitalPoints(atom, pointsPerOrbital * atom.electrons.size());
-        bubblePoints = generateBubble(atom, 8000);
+        bubblePoints = generateBubble(atom, 20000);
         allPoints.clear();
         allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
         allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
