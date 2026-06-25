@@ -73,13 +73,13 @@ static Vec3 sphericalToCart(float r, float theta, float phi) {
 static Color heatMapColor(float t) {
     t = std::max(0.0f, std::min(1.0f, t));
     Color colors[] = {
-        Color(1.0f, 1.0f, 1.0f),    // 0.0 - Blanco
-        Color(1.0f, 1.0f, 0.8f),    // 0.15 - Amarillo claro
-        Color(1.0f, 0.95f, 0.2f),   // 0.3 - Amarillo
-        Color(1.0f, 0.7f, 0.0f),    // 0.5 - Naranja
-        Color(1.0f, 0.3f, 0.0f),    // 0.7 - Rojo-naranja
-        Color(0.6f, 0.05f, 0.1f),   // 0.85 - Rojo oscuro
-        Color(0.2f, 0.0f, 0.3f)     // 1.0 - Morado oscuro
+        Color(1.0f, 1.0f, 1.0f),
+        Color(1.0f, 1.0f, 0.8f),
+        Color(1.0f, 0.95f, 0.2f),
+        Color(1.0f, 0.7f, 0.0f),
+        Color(1.0f, 0.3f, 0.0f),
+        Color(0.6f, 0.05f, 0.1f),
+        Color(0.2f, 0.0f, 0.3f)
     };
     float positions[] = {0.0f, 0.15f, 0.3f, 0.5f, 0.7f, 0.85f, 1.0f};
     
@@ -335,6 +335,42 @@ static std::vector<OrbitalPoint> generateBubble(const Atom& atom, int numPoints)
         Color col = heatMapColor(t);
         
         float density = 1.0f - t * t;
+        
+        OrbitalPoint op;
+        op.pos = pos;
+        op.color = col;
+        op.density = density;
+        points.push_back(op);
+    }
+    
+    return points;
+}
+
+static std::vector<OrbitalPoint> generatePurpleBubble(const Atom& atom, int numPoints) {
+    std::vector<OrbitalPoint> points;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    
+    float innerRadius = atom.nuclearRadius * 1.2f;
+    float outerRadius = atom.nuclearRadius * 2.8f;
+    float thickness = outerRadius - innerRadius;
+    
+    for(int i=0; i<numPoints; i++) {
+        float theta = acos(2*dist(gen)-1);
+        float phi = 2 * 3.14159f * dist(gen);
+        
+        float rFactor = 0.4f + 0.6f * pow(dist(gen), 0.3f);
+        float r = innerRadius + rFactor * thickness;
+        
+        Vec3 pos = sphericalToCart(r, theta, phi);
+        
+        float t = (r - innerRadius) / thickness;
+        t = std::max(0.0f, std::min(1.0f, t));
+        
+        Color col = heatMapColor(t);
+        
+        float density = 0.6f + 0.4f * (1.0f - t * t);
         
         OrbitalPoint op;
         op.pos = pos;
@@ -756,7 +792,7 @@ int main() {
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "Controls: Arrow Up/Down = change element, Mouse drag = rotate, Scroll = zoom" << std::endl;
     std::cout << "Color scheme: Heat map from white/yellow center to dark purple exterior" << std::endl;
-    std::cout << "Bubble density: Enhanced inner region with dense yellow core" << std::endl;
+    std::cout << "Bubble density: Enhanced inner yellow region + dense purple outer layer" << std::endl;
     
     const char* vsSource = "#version 330 core\n"
         "layout(location=0) in vec3 aPos;\n"
@@ -804,10 +840,12 @@ int main() {
     Atom atom = createAtom(userData.currentZ, userData.currentZ);
     std::vector<OrbitalPoint> orbitalPoints = generateOrbitalPoints(atom, 15000);
     std::vector<OrbitalPoint> bubblePoints = generateBubble(atom, 20000);
+    std::vector<OrbitalPoint> purplePoints = generatePurpleBubble(atom, 15000);
     std::vector<OrbitalPoint> allPoints;
-    allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+    allPoints.reserve(orbitalPoints.size() + bubblePoints.size() + purplePoints.size());
     allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
     allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
+    allPoints.insert(allPoints.end(), purplePoints.begin(), purplePoints.end());
     
     GLuint gridVAO = createGridVAO(12.0f, 12);
     GLuint nucleusVAO = createNucleusVAO(0.3f, 16);
@@ -854,10 +892,12 @@ int main() {
             atom = createAtom(userData.currentZ, userData.currentZ);
             orbitalPoints = generateOrbitalPoints(atom, 15000);
             bubblePoints = generateBubble(atom, 20000);
+            purplePoints = generatePurpleBubble(atom, 15000);
             allPoints.clear();
-            allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+            allPoints.reserve(orbitalPoints.size() + bubblePoints.size() + purplePoints.size());
             allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
             allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
+            allPoints.insert(allPoints.end(), purplePoints.begin(), purplePoints.end());
             
             electronPos.clear(); electronCol.clear();
             maxElectronDist = 0.0f;
@@ -945,10 +985,12 @@ int main() {
         if(pointsPerOrbital < 100) pointsPerOrbital = 100;
         orbitalPoints = generateOrbitalPoints(atom, pointsPerOrbital * atom.electrons.size());
         bubblePoints = generateBubble(atom, 20000);
+        purplePoints = generatePurpleBubble(atom, 15000);
         allPoints.clear();
-        allPoints.reserve(orbitalPoints.size() + bubblePoints.size());
+        allPoints.reserve(orbitalPoints.size() + bubblePoints.size() + purplePoints.size());
         allPoints.insert(allPoints.end(), orbitalPoints.begin(), orbitalPoints.end());
         allPoints.insert(allPoints.end(), bubblePoints.begin(), bubblePoints.end());
+        allPoints.insert(allPoints.end(), purplePoints.begin(), purplePoints.end());
         
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
